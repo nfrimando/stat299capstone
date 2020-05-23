@@ -1,11 +1,12 @@
 Package: stat299capstone
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Capstone Project for Stat 299
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Author: Nigel Rimando
+Maintainer: Nigel Rimando <nfrimando@gmail.com>
+Description: This package contains all necessary functions and reports
+    as a requirement to the Stat 299 course of the Professional Masters
+    in Data Science and Analytics.
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
