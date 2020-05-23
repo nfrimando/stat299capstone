@@ -16,7 +16,7 @@ s3_get_document <- function(s3, loan_application_id, attachment_id) {
 
   contents <- s3$list_objects(
     Bucket = "firstcircle",
-    Prefix = glue(
+    Prefix = glue::glue(
       "production/loan_applications/{loan_application_id}/purchase_order_attachments/{attachment_id}/"
     )
   )
