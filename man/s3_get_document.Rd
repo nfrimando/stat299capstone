@@ -20,3 +20,7 @@ The object retrieved from the specified ids
 Extracts document object from S3 based on loan application id and
 document id
 }
+\examples{
+s3 <- paws::s3()
+s3 \%>\% s3_get_document(loan_application_id = 950, attachment_id = 12227)
+}

@@ -12,6 +12,10 @@
 #' @importFrom assertthat assert_that
 #'
 #' @export
+#'
+#' @examples
+#' s3 <- paws::s3()
+#' s3 %>% s3_get_document(loan_application_id = 950, attachment_id = 12227)
 s3_get_document <- function(s3, loan_application_id, attachment_id) {
 
   contents <- s3$list_objects(
