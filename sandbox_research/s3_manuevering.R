@@ -38,3 +38,32 @@ x$Body %>%
 library(EBImage)
 image.img <- readImage("data/test.jpeg") # Read Image
 display(image.img)
+
+
+
+# Trying to create a function to pull -------------------------------------
+
+# https://s3.console.aws.amazon.com/s3/buckets/firstcircle/production/loan_applications/950/purchase_order_attachments/12227/?region=ap-southeast-1&tab=overview
+
+library(glue)
+
+loan_application_id <- 950
+purchase_order_id <- 12227
+
+contents <- s3$list_objects(
+  Bucket = "firstcircle",
+  Prefix = glue(
+    "production/loan_applications/{loan_application_id}/purchase_order_attachments/{purchase_order_id}/"
+  )
+)
+
+length(contents$Contents) == 1
+
+key <- contents$Contents[[1]]$Key
+
+object <- s3$get_object(
+  Bucket = "firstcircle",
+  Key = key
+)
+
+object$Body %>% image_read() %>% image_write(path = "data/test.pdf", format = "pdf")
