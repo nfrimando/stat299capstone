@@ -8,7 +8,7 @@
 #' @param attachment_id id of the attachment
 #' @return The object retrieved from the specified ids
 #'
-#' @import glue paws magick
+#' @import glue paws
 #' @importFrom assertthat assert_that
 #'
 #' @export
