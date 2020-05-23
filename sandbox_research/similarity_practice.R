@@ -4,6 +4,7 @@
 # Preparing Data Set ------------------------------------------------------
 library(keras)
 library(abind)
+library(EBImage)
 
 mnist <- dataset_mnist()
 
