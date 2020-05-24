@@ -3,6 +3,7 @@
 #' @param file_name path to pdf
 #' @param retained_pages pages in the pdf to capture and retain
 #' @param path_folder folder to dump results
+#' @param degrees rotation degrees (defaults to 0)
 #'
 #' @import magick pdftools
 #' @importFrom stringr str_replace
@@ -13,7 +14,7 @@
 #'
 #' @examples
 #' magick_split_pdf(file_name = "data/documents/b9211_la9132_a17927.pdf", retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = "data/documents_processed")
-magick_split_pdf <- function(file_name, retained_pages, path_folder) {
+magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees) {
   for (i in retained_pages) {
 
     x <- image_read_pdf(file_name, pages = i)
@@ -25,6 +26,7 @@ magick_split_pdf <- function(file_name, retained_pages, path_folder) {
     )
 
     x %>%
+      image_rotate(degrees = degrees) %>%
       image_write(
         path = glue::glue(
           "{new_file_name}_page{i}.pdf"

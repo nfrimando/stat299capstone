@@ -4,7 +4,7 @@
 \alias{magick_split_pdf}
 \title{Split PDF into separate pages}
 \usage{
-magick_split_pdf(file_name, retained_pages, path_folder)
+magick_split_pdf(file_name, retained_pages, path_folder, degrees)
 }
 \arguments{
 \item{file_name}{path to pdf}
@@ -12,6 +12,8 @@ magick_split_pdf(file_name, retained_pages, path_folder)
 \item{retained_pages}{pages in the pdf to capture and retain}
 
 \item{path_folder}{folder to dump results}
+
+\item{degrees}{rotation degrees (defaults to 0)}
 }
 \description{
 Split PDF into separate pages

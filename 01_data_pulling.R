@@ -50,3 +50,6 @@ for (i in 1:nrow(filtered_dataset)) {
     )
 }
 
+# Done buyer ids
+# 9211
+
