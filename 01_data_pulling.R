@@ -29,7 +29,7 @@ s3 <- paws::s3()
 
 # Looping -----------------------------------------------------------------
 
-buyer_id_specific <- 9763 # Modify Me!
+buyer_id_specific <- 9592 # Modify Me!
 
 if (!(glue("b{buyer_id_specific}") %in% list.files("data/documents"))) {
   dir.create(glue("data/documents/b{buyer_id_specific}"))

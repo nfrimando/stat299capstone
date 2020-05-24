@@ -18,7 +18,7 @@
 magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees = 0, all_pages = FALSE) {
 
   if (all_pages == TRUE) {
-    retained_pages <- length(image_read_pdf(file_name))
+    retained_pages <- 1:length(image_read_pdf(file_name))
   }
 
   for (i in retained_pages) {
