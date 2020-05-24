@@ -13,5 +13,8 @@ LazyData: true
 Imports:
 	glue,
 	paws,
-	magick
+	magick,
+	stringr,
+	pdftools,
+	assertthat
 RoxygenNote: 7.1.0

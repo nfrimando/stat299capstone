@@ -4,6 +4,7 @@
 #' @param retained_pages pages in the pdf to capture and retain
 #' @param path_folder folder to dump results
 #' @param degrees rotation degrees (defaults to 0)
+#' @param all_pages if TRUE, processes all pages and ignores retained_pages
 #'
 #' @import magick pdftools
 #' @importFrom stringr str_replace
@@ -14,7 +15,12 @@
 #'
 #' @examples
 #' magick_split_pdf(file_name = "data/documents/b9211_la9132_a17927.pdf", retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = "data/documents_processed")
-magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees = 0) {
+magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees = 0, all_pages = FALSE) {
+
+  if (all_pages == TRUE) {
+    retained_pages <- length(image_read_pdf(file_name))
+  }
+
   for (i in retained_pages) {
 
     x <- image_read_pdf(file_name, pages = i)
