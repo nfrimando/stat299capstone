@@ -14,7 +14,7 @@
 #'
 #' @examples
 #' magick_split_pdf(file_name = "data/documents/b9211_la9132_a17927.pdf", retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = "data/documents_processed")
-magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees) {
+magick_split_pdf <- function(file_name, retained_pages, path_folder, degrees = 0) {
   for (i in retained_pages) {
 
     x <- image_read_pdf(file_name, pages = i)
