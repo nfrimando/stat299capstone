@@ -15,12 +15,13 @@ magick_split_pdf(
   retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = path_folder
 )
 
-for (i in c(2748, 2746)) {
-  magick_split_pdf(
-    file_name = glue::glue(folder_path, "{buyer_folder}/b9211_la5589_a{i}.pdf"),
-    retained_pages = c(1), path_folder = path_folder
-  )
-}
+# Invoice
+# for (i in c(2748, 2746)) {
+#   magick_split_pdf(
+#     file_name = glue::glue(folder_path, "{buyer_folder}/b9211_la5589_a{i}.pdf"),
+#     retained_pages = c(1), path_folder = path_folder
+#   )
+# }
 
 for (i in c(9738, 9737, 9736, 9735, 9734, 9733, 9732, 9731, 9730, 9729,
             9728, 9725, 9723, 9722)) {

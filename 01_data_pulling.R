@@ -29,7 +29,7 @@ s3 <- paws::s3()
 
 # Looping -----------------------------------------------------------------
 
-buyer_id_specific <- 9592 # Modify Me!
+buyer_id_specific <- 8607 # Modify Me!
 
 if (!(glue("b{buyer_id_specific}") %in% list.files("data/documents"))) {
   dir.create(glue("data/documents/b{buyer_id_specific}"))
@@ -57,5 +57,8 @@ for (i in 1:nrow(filtered_dataset)) {
 }
 
 # Done buyer ids
-# 9211, 9763
+# 9211, 9763, 9592, 12754, 2929
+# Skipped
+# 12144 -- same as SM
+# 2681 -- lazada has different shiz
 

@@ -1,7 +1,8 @@
 with
 grouped as (
     select      po.buyer_id,
-                count(*) as count
+                count(*) as count,
+                count(distinct po.loan_application_id) as distinct_loan_applications
     from        purchase_orders po
                 left join purchase_order_documents pod On pod.purchase_order_id = po.id
                 left join purchase_order_attachments poa ON poa.purchase_order_document_id = pod.id
@@ -23,6 +24,7 @@ prelim as (
     select      *,
                 row_number() over (order by count desc) as order_sum
     from        grouped
+    where       distinct_loan_applications > 2
 )
 
 select      p.*,
