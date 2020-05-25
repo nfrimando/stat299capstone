@@ -5,6 +5,7 @@
 library(keras)
 library(abind)
 library(EBImage)
+library(purrr)
 
 mnist <- dataset_mnist()
 
@@ -278,6 +279,22 @@ test_similar <- map(
   }
 )
 
+
+index <- 8
+
+abind(test_similar[[index]]$images[[1]][1,,,] %>% aperm(c(2,1)),
+      test_similar[[index]]$images[[2]][1,,,] %>% aperm(c(2,1)),
+      along = 1) %>% 
+  Image(colormode = "Grayscale") %>% 
+  display(method = "raster")  
+title( 
+  paste0( 
+    test_similar[[index]]$numbers[[1]] , " v.s " , test_similar[[index]]$numbers[[2]] , " , similarity : " , 
+    test_similar[[index]]$prediction
+  ) 
+)  
+
+
 # Different Numbers
 test_different <- map(
   1:samples,
@@ -305,4 +322,20 @@ test_different <- map(
     )
   }
 )
+
+index <- 1
+
+abind(test_different[[index]]$images[[1]][1,,,] %>% aperm(c(2,1)),
+      test_different[[index]]$images[[2]][1,,,] %>% aperm(c(2,1)),
+      along = 1) %>% 
+  Image(colormode = "Grayscale") %>% 
+  display(method = "raster")  
+title( 
+  paste0( 
+    test_different[[index]]$numbers[[1]] , " v.s " , test_different[[index]]$numbers[[2]] , " , similarity : " , 
+    test_different[[index]]$prediction
+  ) 
+)  
+
+
 

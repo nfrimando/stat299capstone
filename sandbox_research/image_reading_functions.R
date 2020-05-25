@@ -17,8 +17,9 @@ display(img2, method="raster", all=TRUE)
 
 # Try with mnist ----------------------------------------------------------
 
-mnist$train$x[6,,] %>% 
-  Image(colormode = Color) %>% 
+mnist$train$x[6,,] %>%
+  Image(colormode = "grayscale") %>%
+  # Image(colormode = Color) %>%
   display(method = "raster", all = TRUE)
 
 
@@ -53,8 +54,8 @@ image_resized.mat <- array_reshape(
   dim = c(64, 64, 3)
 )
 
-image_resized.mat %>% 
-  Image(colormode = Color) %>% 
+image_resized.mat %>%
+  Image(colormode = Color) %>%
   display(method = "raster", all = TRUE)
 
 
@@ -76,7 +77,7 @@ input_data <- abind(
     image_resized.mat2
   ),
   along = 4
-) %>% 
+) %>%
   aperm(c(4,1,2,3))
 
 # input_data[1,,,] %>% Image(colormode = Color) %>% display(all = TRUE)

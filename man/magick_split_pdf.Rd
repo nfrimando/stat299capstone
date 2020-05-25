@@ -9,7 +9,8 @@ magick_split_pdf(
   retained_pages,
   path_folder,
   degrees = 0,
-  all_pages = FALSE
+  all_pages = FALSE,
+  format = "png"
 )
 }
 \arguments{
@@ -22,10 +23,12 @@ magick_split_pdf(
 \item{degrees}{rotation degrees (defaults to 0)}
 
 \item{all_pages}{if TRUE, processes all pages and ignores retained_pages}
+
+\item{format}{format of resulting data}
 }
 \description{
 Split PDF into separate pages
 }
 \examples{
-magick_split_pdf(file_name = "data/documents/b9211_la9132_a17927.pdf", retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = "data/documents_processed")
+magick_split_pdf(file_name = "data/documents/b9211/b9211_la9132_a17927.pdf", retained_pages = c(1, 3, 5, 7, 9, 11), path_folder = "data/documents_processed")
 }
