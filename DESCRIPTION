@@ -16,5 +16,9 @@ Imports:
 	magick,
 	stringr,
 	pdftools,
-	assertthat
+	assertthat,
+	EBImage,
+	dplyr,
+	pbapply,
+	purrr
 RoxygenNote: 7.1.0
