@@ -26,6 +26,7 @@ collect_images <- function(path, width = 210, height = 300) {
         EBImage::readImage() %>%
         EBImage::imageData() %>% # Turn to array
         # {.[200:400,200:400,]} %>%
+        {1 - .} %>%
         EBImage::resize(w = width, h = height) %>%
         EBImage::channel(mode = "gray") %>%
         apply(c(1,2), mean)

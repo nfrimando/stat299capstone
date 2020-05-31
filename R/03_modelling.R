@@ -1,43 +1,79 @@
 # Practice
 # https://www.kaggle.com/shih0430/mnist-siamese-neural-network-for-keras-r-code
 
-# Preparing Data Set ------------------------------------------------------
+
+# Libraries ---------------------------------------------------------------
+
 library(keras)
-library(abind)
+library(glue)
+library(tidyverse)
 library(EBImage)
-library(purrr)
 
-mnist <- dataset_mnist()
-
-train_images <- mnist$train$x
-train_labels <- mnist$train$y
+shape_size_length  <- 200
+shape_size_width   <- shape_size_length * 0.7
 
 set.seed(9478)
 
-# Validation Indeces
-val_idx      <- sample( 1:nrow(train_images) , size = ceiling(0.2*nrow(train_images)) , replace = F )
-val_images   <- train_images[val_idx,,]
-val_labels   <- train_labels[val_idx]
-train_images <- train_images[-val_idx,,]
-train_labels <- train_labels[-val_idx]
-test_images  <- mnist$test$x
-test_labels  <- mnist$test$y
+# Preparing Data Set ------------------------------------------------------
+
+documents <- readRDS(glue("data/data_processed_{shape_size_length}_{shape_size_width}.rds"))
+
+# Limit Data set to having equal representation
+smallest_sample_size <- data.frame(labels = documents$labels) %>%
+  group_by(labels) %>% summarise(count = n()) %>% ungroup() %>%
+  {.$count} %>%
+  min()
+
+max_sample_size <- 70
+
+sample_indeces <- map(
+  unique(documents$labels),
+  function(x) {
+    which(documents$labels == x) %>%
+      sample(min(max_sample_size, sum(documents$labels == x)))
+  }
+) %>% unlist
+
+documents_samples <- list(
+  images = 1 - documents$images[sample_indeces,,],
+  labels = documents$labels[sample_indeces]
+)
+
+# Split to train, validation, and test
+# 90-18-10
+
+train_indeces <- sample(1:length(documents_samples$labels), ceiling(length(documents_samples$labels) * 0.9))
+test_indeces <- (1:length(documents_samples$labels))[-train_indeces]
+val_indeces <- sample(train_indeces, length(train_indeces) * 0.2)
+train_indeces <- train_indeces[!(train_indeces %in% val_indeces)]
+labels <- factor(documents_samples$labels, levels = sort(unique(as.numeric(documents_samples$labels)))) # Turn lables to numeric
+
+# Train
+train_images <- documents_samples$images[train_indeces, ,]
+train_labels <- as.numeric(labels[train_indeces]) - 1
+
+# Validation
+val_images <- documents_samples$images[val_indeces, ,]
+val_labels <- as.numeric(labels[val_indeces]) - 1
+
+# Test
+test_images <- documents_samples$images[test_indeces, ,]
+test_labels <- as.numeric(labels[test_indeces]) - 1
 
 # Check out an image
-train_images[5,,] %>%
-  aperm(c(2,1)) %>%
+train_images[32,,] %>%
   Image(colormode = "Grayscale") %>%
   display(method = "raster")
+
+train_labels[32]
 
 
 # Parameters --------------------------------------------------------------
 
-num_classes  <- 10 # only number : 0,1,2,3,4,5,6,7,8,9
-shape_size   <- 28 # mnist shape ( ,28,28)
+num_classes  <- 6
 train_batch  <- 20
-val_batch    <- 20
+val_batch    <- 10
 test_batch   <- 1
-
 
 # Data Preprocess ---------------------------------------------------------
 
@@ -63,8 +99,7 @@ for( grp_idx in 1:length(grp_kind) ) { # grp_idx = 1
   )
 }
 
-train_data_list[[1]]$data[5,,,] %>%
-  aperm(c(2,1)) %>%
+train_data_list[[3]]$data[9,,,] %>%
   Image(colormode = "Grayscale") %>%
   display(method = "raster")
 
@@ -72,15 +107,16 @@ train_data_list[[1]]$data[5,,,] %>%
 # Data Augmentation -------------------------------------------------------
 
 train_datagen = image_data_generator(
-  rescale = 1/255          ,
-  rotation_range = 5       ,
-  width_shift_range = 0.1  ,
+  rescale = 1          ,
+  rotation_range = 2       ,
+  width_shift_range = 0.01  ,
   height_shift_range = 0.05,
-  #shear_range = 0.1,
+  shear_range = 0.1,
   zoom_range = 0.1         ,
   horizontal_flip = FALSE  ,
   vertical_flip = FALSE    ,
-  fill_mode = "constant"
+  fill_mode = "constant",
+  cval = 0
 )
 
 train_augmentation_generator <- function(label_index) {
@@ -106,7 +142,7 @@ val_augmentation_generator <- function(label_index) {
 }
 
 
-# 0 to 9 label but index is 1 to 10
+# 0 to 5 label but index is 1 to 6
 train_augmentation_generator.list <- map(
   grp_kind,
   function(label_index) {train_augmentation_generator(label_index + 1)}
@@ -156,8 +192,8 @@ val_join_generator     <- join_generator( val_augmentation_generator.list   , va
 
 train_join_generator() %>% {
   sample <- .
-  sample[[1]][[1]][1,,,] %>% aperm(c(2,1)) %>%
-    abind(sample[[1]][[2]][1,,,] %>% aperm(c(2,1)), along = 1) %>%
+  sample[[1]][[1]][1,,,] %>%
+    abind(sample[[1]][[2]][1,,,], along = 1) %>%
     Image(colormode = "Grayscale") %>%
     display(method = "raster")
 }
@@ -166,28 +202,28 @@ train_join_generator() %>% {
 
 # building the model ------------------------------------------------------
 
-left_input_tensor      <- layer_input(shape = list(shape_size, shape_size, 1), name = "left_input_tensor")
-right_input_tensor     <- layer_input(shape = list(shape_size, shape_size, 1), name = "right_input_tensor")
+left_input_tensor      <- layer_input(shape = list(shape_size_width, shape_size_length, 1), name = "left_input_tensor")
+right_input_tensor     <- layer_input(shape = list(shape_size_width, shape_size_length, 1), name = "right_input_tensor")
 
 # conv_base              <- keras_model_sequential()           %>%
-#   layer_flatten(input_shape = list(shape_size, shape_size, 1)) %>%
-#   layer_dense(units = 128, activation = "relu", name='fc1')  %>%
+#   layer_flatten(input_shape = list(shape_size_width, shape_size_length, 1)) %>%
+#   layer_dense(units = 512, activation = "relu", name='fc1')  %>%
 #   layer_dropout(rate = 0.1, name='dropout1')                 %>%
-#   layer_dense(units = 128, activation = "relu", name='fc2')  %>%
+#   layer_dense(units = 256, activation = "relu", name='fc2')  %>%
 #   layer_dropout(rate = 0.1, name='dropout2')                 %>%
 #   layer_dense(units = 128, activation = "relu", name='fc3')
 
 conv_base <- keras_model_sequential() %>%
-  layer_conv_2d(filters = 16, kernel_size = c(5, 5), activation = "relu", input_shape = list(shape_size, shape_size, 1), stride = 1) %>%
+  layer_conv_2d(filters = 8, kernel_size = c(3, 3), activation = "relu", input_shape = list(shape_size_width, shape_size_length, 1), stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2), stride = 2) %>%
-  layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = "relu", stride = 1) %>%
+  layer_conv_2d(filters = 16, kernel_size = c(2, 2), activation = "relu", stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2)) %>%
-  layer_conv_2d(filters = 32, kernel_size = c(2, 2), activation = "relu", stride = 1) %>%
+  layer_conv_2d(filters = 16, kernel_size = c(2, 2), activation = "relu", stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2)) %>%
   layer_flatten() %>%
-  layer_dense(units = 128, activation = "relu", name = 'fc1')  %>%
+  layer_dense(units = 64, activation = "relu", name = 'fc1')  %>%
   layer_dropout(rate = 0.1, name = 'dropout1')                 %>%
-  layer_dense(units = 256, activation = "sigmoid", name = 'fc2')
+  layer_dense(units = 128, activation = "sigmoid", name = 'fc2')
 
 left_output_tensor     <- left_input_tensor  %>% conv_base
 
@@ -214,140 +250,103 @@ model       <- keras_model( list(left_input_tensor,right_input_tensor), predicti
 
 model %>% compile(
   loss      = "binary_crossentropy",
-  optimizer = optimizer_rmsprop(lr = 1e-3),
+  optimizer = optimizer_rmsprop(lr = 0.0005),
   metrics   = c("accuracy")
 )
 
 history <- model %>% fit_generator(
   generator = train_join_generator,
-  steps_per_epoch = 100,
-  epochs = 50,
+  steps_per_epoch = 25,
+  epochs = 25,
   validation_data = val_join_generator,
-  validation_steps = 50
+  validation_steps = 25
 )
 
 plot(history)
 
 
+# Save Model --------------------------------------------------------------
+
+model %>% save_model_hdf5(filepath = glue("models/model_{shape_size_width}_{shape_size_length}.h5"))
+
+
 # Test Model --------------------------------------------------------------
 
 # same number
-mnist_number_left  <- 9
+mnist_number_left  <- 2
 filter_idx_left    <- sample( which( test_labels == mnist_number_left  ) , 1 )
-img_input_left     <- test_images[filter_idx_left ,,]/255
-mnist_number_right <- 0
+img_input_left     <- test_images[filter_idx_left ,,]
+mnist_number_right <- 3
 filter_idx_right   <- sample( which( test_labels == mnist_number_right ) , 1 )
-img_input_right    <- test_images[filter_idx_right,,]/255
-img_input_left     <- array_reshape(img_input_left , c(1, shape_size, shape_size, 1))
-img_input_right    <- array_reshape(img_input_right, c(1, shape_size, shape_size, 1))
+img_input_right    <- test_images[filter_idx_right,,]
+img_input_left     <- array_reshape(img_input_left , c(1, shape_size_width, shape_size_length, 1))
+img_input_right    <- array_reshape(img_input_right, c(1, shape_size_width, shape_size_length, 1))
 
 similarity         <- model %>%
   predict(
-    list(img_input_left,img_input_right)
+    list(img_input_left, img_input_right)
   )
 
-abind(img_input_left[1,,,] %>% aperm(c(2,1)),
-      img_input_right[1,,,] %>% aperm(c(2,1)),
+abind(1 - img_input_left[1,,,],
+      1 - img_input_right[1,,,],
       along = 1) %>%
   Image(colormode = "Grayscale") %>%
   display(method = "raster")
 title(
   paste0(
     test_labels[filter_idx_left] , " v.s " , test_labels[filter_idx_right] , " , similarity : " ,
-    round(similarity,3)
-  )
+    round(similarity,5)
+  ),
+  col.main = "blue"
 )
 
 
 # Entire Set --------------------------------------------------------------
 
-set.seed(1)
+test_labels
 
-# Similar Numbers
-samples <- 1000
-test_similar <- map(
-  1:samples,
-  function(sample_num) {
-    number <- sample(0:9, 1)
-    mnist_number_left <- number
-    mnist_number_right <- number
-    filter_idx_left    <- sample( which( test_labels == mnist_number_left  ) , 1 )
-    img_input_left     <- test_images[filter_idx_left ,,]/255
-    filter_idx_right   <- sample( which( test_labels == mnist_number_right ) , 1 )
-    img_input_right    <- test_images[filter_idx_right,,]/255
-    img_input_left     <- array_reshape(img_input_left , c(1, shape_size, shape_size, 1))
-    img_input_right    <- array_reshape(img_input_right, c(1, shape_size, shape_size, 1))
-    similarity         <- model %>%
+index <- 14
+(1 - test_images[index,,]) %>% display()
+
+# compare against everything in test set
+similarities <- map(
+  (1:(test_images %>% dim())[1])[-index],
+  function(x){
+    similarity <- model %>%
       predict(
-        list(img_input_left,img_input_right)
+        list(
+          array_reshape(test_images[index,,] , c(1, shape_size_width, shape_size_length, 1)),
+          array_reshape(test_images[x ,,] , c(1, shape_size_width, shape_size_length, 1))
+        )
       )
-    return(
-      list(
-        number = number,
-        images = list(img_input_left, img_input_right),
-        prediction = similarity
-      )
+
+    list(
+      image = test_images[x ,,],
+      similarity = similarity
     )
   }
 )
 
+# Order based on most similar
+ordered_similarities <- similarities[order(map_dbl(similarities, c("similarity")), decreasing = TRUE)]
 
-index <- 8
-
-abind(test_similar[[index]]$images[[1]][1,,,] %>% aperm(c(2,1)),
-      test_similar[[index]]$images[[2]][1,,,] %>% aperm(c(2,1)),
+abind(1 - test_images[index,,],
+      1 - ordered_similarities[[1]]$image,
+      1 - ordered_similarities[[2]]$image,
+      1 - ordered_similarities[[3]]$image,
+      1 - ordered_similarities[[4]]$image,
       along = 1) %>%
   Image(colormode = "Grayscale") %>%
   display(method = "raster")
 title(
-  paste0(
-    test_similar[[index]]$numbers[[1]] , " v.s " , test_similar[[index]]$numbers[[2]] , " , similarity : " ,
-    test_similar[[index]]$prediction
-  )
+  paste(
+    "Original",
+    round(ordered_similarities[[1]]$similarity,5),
+    round(ordered_similarities[[2]]$similarity,5),
+    round(ordered_similarities[[3]]$similarity,5),
+    round(ordered_similarities[[4]]$similarity,5),
+    sep = ", "
+  ),
+  col.main = "blue",
+  line = -3
 )
-
-
-# Different Numbers
-test_different <- map(
-  1:samples,
-  function(sample_num) {
-    number_left <- sample(0:9, 1)
-    number_right <- sample((0:9)[which(0:9 != number_left)], 1)
-    mnist_number_left <- number_left
-    mnist_number_right <- number_right
-    filter_idx_left    <- sample( which( test_labels == mnist_number_left  ) , 1 )
-    img_input_left     <- test_images[filter_idx_left ,,]/255
-    filter_idx_right   <- sample( which( test_labels == mnist_number_right ) , 1 )
-    img_input_right    <- test_images[filter_idx_right,,]/255
-    img_input_left     <- array_reshape(img_input_left , c(1, shape_size, shape_size, 1))
-    img_input_right    <- array_reshape(img_input_right, c(1, shape_size, shape_size, 1))
-    similarity         <- model %>%
-      predict(
-        list(img_input_left,img_input_right)
-      )
-    return(
-      list(
-        numbers = list(number_left, number_right),
-        images = list(img_input_left, img_input_right),
-        prediction = similarity
-      )
-    )
-  }
-)
-
-index <- 1
-
-abind(test_different[[index]]$images[[1]][1,,,] %>% aperm(c(2,1)),
-      test_different[[index]]$images[[2]][1,,,] %>% aperm(c(2,1)),
-      along = 1) %>%
-  Image(colormode = "Grayscale") %>%
-  display(method = "raster")
-title(
-  paste0(
-    test_different[[index]]$numbers[[1]] , " v.s " , test_different[[index]]$numbers[[2]] , " , similarity : " ,
-    test_different[[index]]$prediction
-  )
-)
-
-
-

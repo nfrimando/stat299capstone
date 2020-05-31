@@ -3,25 +3,29 @@
 
 library(stat299capstone)
 library(tidyverse)
+library(glue)
+
+height <- 200
+width <- height * 0.7
 
 # 12754 -- 32 images -- SM
-b12754.imgs <- collect_images("data/documents_processed/b12754", width = 350, height = 500)
+b12754.imgs <- collect_images("data/documents_processed/b12754", width = width, height = height)
 
 # 2929 -- 58 images -- National Energy
 # Remove b2929_la285_a9312_page2.png
-b2929.imgs <- collect_images("data/documents_processed/b2929", width = 350, height = 500)
+b2929.imgs <- collect_images("data/documents_processed/b2929", width = width, height = height)
 
 # 8607 -- 55 images -- JLL
-b8607.imgs <- collect_images("data/documents_processed/b8607", width = 350, height = 500)
+b8607.imgs <- collect_images("data/documents_processed/b8607", width = width, height = height)
 
 # 9211 -- 98 images - MDC
-b9211.imgs <- collect_images("data/documents_processed/b9211", width = 350, height = 500)
+b9211.imgs <- collect_images("data/documents_processed/b9211", width = width, height = height)
 
 # 9592 -- 151 images - Makati Med
-b9592.imgs <- collect_images("data/documents_processed/b9592", width = 350, height = 500)
+b9592.imgs <- collect_images("data/documents_processed/b9592", width = width, height = height)
 
 # 9763 -- 139 images -- Metro Gaisano
-b9763.imgs <- collect_images("data/documents_processed/b9763", width = 350, height = 500)
+b9763.imgs <- collect_images("data/documents_processed/b9763", width = width, height = height)
 
 
 # Compiling ---------------------------------------------------------------
@@ -50,6 +54,6 @@ saveRDS(
     images = compiled.imgs,
     labels = labels
   ),
-  "data/data_processed.rds"
+  glue("data/data_processed_{height}_{width}.rds")
 )
 
