@@ -258,11 +258,16 @@ right_input_tensor     <- layer_input(shape = list(shape_size_width, shape_size_
 #   layer_dense(units = 128, activation = "relu", name='fc3')
 
 conv_base <- keras_model_sequential() %>%
-  layer_conv_2d(filters = 8, kernel_size = c(3, 3), activation = "relu", input_shape = list(shape_size_width, shape_size_length, 1), stride = 1) %>%
+  layer_conv_2d(filters = 8, kernel_size = c(3, 3),
+                activation = "relu",
+                input_shape = list(shape_size_width, shape_size_length, 1),
+                stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2), stride = 2) %>%
-  layer_conv_2d(filters = 16, kernel_size = c(2, 2), activation = "relu", stride = 1) %>%
+  layer_conv_2d(filters = 16, kernel_size = c(2, 2),
+                activation = "relu", stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2)) %>%
-  layer_conv_2d(filters = 16, kernel_size = c(2, 2), activation = "relu", stride = 1) %>%
+  layer_conv_2d(filters = 16, kernel_size = c(2, 2),
+                activation = "relu", stride = 1) %>%
   layer_max_pooling_2d(pool_size = c(2, 2)) %>%
   layer_flatten() %>%
   layer_dense(units = 64, activation = "relu", name = 'fc1')  %>%
@@ -273,7 +278,7 @@ left_output_tensor     <- left_input_tensor  %>% conv_base
 
 right_output_tensor    <- right_input_tensor %>%  conv_base
 
-L1_distance <- function(tensors) { # build keras backend's function
+L1_distance <- function(tensors) {
   c(x,y) %<-% tensors
   return( k_abs( x - y ) )
 }
