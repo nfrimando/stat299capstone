@@ -35,7 +35,7 @@ sample_indeces <- map(
 ) %>% unlist
 
 documents_samples <- list(
-  images = 1 - documents$images[sample_indeces,,],
+  images = documents$images[sample_indeces,,],
   labels = documents$labels[sample_indeces]
 )
 
