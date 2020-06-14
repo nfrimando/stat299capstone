@@ -40,9 +40,9 @@ documents_samples <- list(
 )
 
 # Split to train, validation, and test
-# 90-18-10
+# 64-16-20
 
-train_indeces <- sample(1:length(documents_samples$labels), ceiling(length(documents_samples$labels) * 0.9))
+train_indeces <- sample(1:length(documents_samples$labels), ceiling(length(documents_samples$labels) * 0.8))
 test_indeces <- (1:length(documents_samples$labels))[-train_indeces]
 val_indeces <- sample(train_indeces, length(train_indeces) * 0.2)
 train_indeces <- train_indeces[!(train_indeces %in% val_indeces)]
@@ -114,12 +114,22 @@ train_data_list[[3]]$data[9,,,] %>%
   Image(colormode = "Grayscale") %>%
   display(method = "raster")
 
+# Save for Usage
+
+saveRDS(
+  list(
+    train_data = train_data_list,
+    test_data = test_data_list,
+    val_data = val_data_list
+  ),
+  "data/modelling_data/data.rds"
+)
 
 # Data Augmentation -------------------------------------------------------
 
 train_datagen = image_data_generator(
   rescale = 1          ,
-  rotation_range = 2       ,
+  rotation_range = 10       ,
   width_shift_range = 0.01  ,
   height_shift_range = 0.05,
   shear_range = 0.1,
@@ -180,7 +190,6 @@ test_augmentation_generator.list <- map(
   function(label_index) {test_augmentation_generator(label_index + 1)}
 )
 
-
 # joining images together -------------------------------------------------
 
 join_generator <- function( generator_list , batch ) {
@@ -220,13 +229,20 @@ test_join_generator     <- join_generator( test_augmentation_generator.list   , 
 
 train_join_generator() %>% {
   sample <- .
-  sample[[1]][[1]][1,,,] %>%
-    abind(sample[[1]][[2]][1,,,], along = 1) %>%
+  sample[[1]][[1]][11,,,] %>%
+    abind(sample[[1]][[2]][11,,,], along = 1) %>%
     Image(colormode = "Grayscale") %>%
     display(method = "raster")
 }
 
-
+saveRDS(
+  list(
+    train_join_generator = train_join_generator,
+    val_join_generator = val_join_generator,
+    test_join_generator = test_join_generator
+  ),
+  "data/modelling_data/join_generators.rds"
+)
 
 # building the model ------------------------------------------------------
 
@@ -282,20 +298,23 @@ model %>% compile(
   metrics   = c("accuracy")
 )
 
+start_time <- Sys.time()
 history <- model %>% fit_generator(
   generator = train_join_generator,
   steps_per_epoch = 25,
-  epochs = 25,
+  epochs = 30,
   validation_data = val_join_generator,
   validation_steps = 25
 )
+end_time <- Sys.time()
+model1_time <- end_time - start_time
 
 plot(history)
 
 
 # Data testing ------------------------------------------------------------
 
-model %>% evaluate_generator(test_join_generator, steps = 100)
+model3 %>% evaluate_generator(test_join_generator, steps = 1000)
 model %>% predict_generator(test_generator, steps=num_test_images)
 
 
