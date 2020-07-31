@@ -24,7 +24,7 @@ smallest_sample_size <- data.frame(labels = documents$labels) %>%
   {.$count} %>%
   min()
 
-max_sample_size <- 70
+max_sample_size <- 1000
 
 sample_indeces <- map(
   unique(documents$labels),
@@ -49,15 +49,15 @@ train_indeces <- train_indeces[!(train_indeces %in% val_indeces)]
 labels <- factor(documents_samples$labels, levels = sort(unique(as.numeric(documents_samples$labels)))) # Turn lables to numeric
 
 # Train
-train_images <- documents_samples$images[train_indeces, ,]
+train_images <- 1 - documents_samples$images[train_indeces, ,]
 train_labels <- as.numeric(labels[train_indeces]) - 1
 
 # Validation
-val_images <- documents_samples$images[val_indeces, ,]
+val_images <- 1 - documents_samples$images[val_indeces, ,]
 val_labels <- as.numeric(labels[val_indeces]) - 1
 
 # Test
-test_images <- documents_samples$images[test_indeces, ,]
+test_images <- 1 - documents_samples$images[test_indeces, ,]
 test_labels <- as.numeric(labels[test_indeces]) - 1
 
 # Check out an image
@@ -201,7 +201,7 @@ join_generator <- function( generator_list , batch ) {
       # front half
       if( i <= ceiling(batch/2) ) { # It's suggest to use balance of positive and negative data set, so I divide half is 1(same) and another is 0(differnet).
         grp_same    <- sample( seq_len(num_classes) , 1 )
-        batch_left  <- abind( batch_left , generator_next(generator_list[[grp_same]])[[1]] , along = 1 )
+        batch_left  <- abind( batch_left , c , along = 1 )
         batch_right <- abind( batch_right , generator_next(generator_list[[grp_same]])[[1]] , along = 1 )
         similarity  <- c( similarity , 1 ) # 1 : from the same number
         #par(mar = c(0,0,4,0))
@@ -403,3 +403,288 @@ title(
   col.main = "blue",
   line = -3
 )
+
+
+
+# Performance on non-augmented data -----------------------------
+
+test_labels %>% length()
+
+index <- 30
+
+# compare against everything in train set
+similarities <- map(
+  (1:(train_images %>% dim())[1]),
+  function(x){
+    message(glue("Image {x} out of 342"))
+    similarity <- model %>%
+      predict(
+        list(
+          array_reshape(test_images[index,,] , c(1, shape_size_width, shape_size_length, 1)),
+          array_reshape(train_images[x ,,] , c(1, shape_size_width, shape_size_length, 1))
+        )
+      )
+
+    list(
+      image = train_images[x ,,],
+      similarity = similarity
+    )
+  }
+)
+
+# Order based on most similar
+ordered_similarities <- similarities[order(map_dbl(similarities, c("similarity")), decreasing = TRUE)]
+
+abind(1 - test_images[index,,],
+      1 - ordered_similarities[[4]]$image,
+      1 - ordered_similarities[[3]]$image,
+      1 - ordered_similarities[[2]]$image,
+      1 - ordered_similarities[[1]]$image,
+      along = 1) %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+title(
+  paste(
+    "Original",
+    round(ordered_similarities[[1]]$similarity,5),
+    round(ordered_similarities[[2]]$similarity,5),
+    round(ordered_similarities[[3]]$similarity,5),
+    round(ordered_similarities[[4]]$similarity,5),
+    sep = ", "
+  ),
+  col.main = "blue",
+  line = -3
+)
+
+
+
+# measure percent correct for one test image
+map_chr(similarities, c('is_correct'))
+
+library(glue)
+# Do for all items in test set
+non_augmented_similarities <- map_df(
+  1:length(test_labels),
+  function(test_index) {
+    map_df(
+      1:length(train_labels),
+      function(train_index) {
+        message(glue("Comparing test index {test_index} against train index {train_index} out of {(train_images %>% dim())[1]}"))
+
+        similarity <- model %>%
+          predict(
+            list(
+              array_reshape(test_images[test_index,,] , c(1, shape_size_width, shape_size_length, 1)),
+              array_reshape(train_images[train_index ,,] , c(1, shape_size_width, shape_size_length, 1))
+            )
+          )
+
+        data.frame(
+          test_index = test_index,
+          test_label = test_labels[test_index],
+          train_index = train_index,
+          train_label = train_labels[train_index],
+          similarity = similarity
+        )
+      }
+    )
+  }
+)
+
+saveRDS(
+  list(
+    non_augmented_similarities
+  ),
+  "data/modelling_data/non_augmented_similarities.rds"
+)
+
+train_labels %>% table()
+
+non_augmented_similarities %>%
+  mutate(is_predicted_similar = similarity >= 0.5) %>%
+  mutate(is_correct = (is_predicted_similar & test_label == train_label) | (!is_predicted_similar & test_label != train_label)) %>%
+  group_by(test_label) %>%
+  summarise(
+    number_of_pairs = n(),
+    number_of_test_samples = length(unique(test_index)),
+    number_of_actual_similar_pairs = sum(test_label == train_label),
+    number_of_predicted_similar_pairs = sum(is_predicted_similar),
+    number_of_actual_dissimilar_pairs = sum(test_label != train_label),
+    number_of_predicted_dissimilar_pairs = sum(!is_predicted_similar),
+    number_of_correctly_predicted_pairs = sum(is_correct),
+    accuracy = sum(is_correct)/n(),
+    sensitivity = sum(is_predicted_similar & test_label == train_label)/sum(test_label == train_label),
+    specificity = sum(!is_predicted_similar & test_label != train_label)/sum(test_label != train_label)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(number_of_test_samples))
+
+# Threshold sensitivity
+auc <- map_df(
+  seq(0, 1, 0.05),
+  function(cutoff) {
+    non_augmented_similarities %>%
+      mutate(is_predicted_similar = similarity >= cutoff) %>%
+      mutate(is_correct = (is_predicted_similar & test_label == train_label) | (!is_predicted_similar & test_label != train_label)) %>%
+      summarise(
+        accuracy = sum(is_correct)/n(),
+        sensitivity = sum(is_predicted_similar & test_label == train_label)/sum(test_label == train_label),
+        specificity = sum(!is_predicted_similar & test_label != train_label)/sum(test_label != train_label)
+      ) %>%
+      ungroup() %>%
+      mutate(threshold = cutoff)
+  }
+)
+
+library(scales)
+auc %>%
+  gather(key = variable, value = value, -threshold) %>%
+  ggplot() +
+  geom_line(mapping = aes(x = threshold, y = value, color = variable)) +
+  theme_bw() +
+  scale_x_continuous(breaks = seq(0, 1, 0.05), labels = percent) +
+  scale_y_continuous(breaks = seq(0, 1, 0.05), labels = percent) +
+  labs(
+    y = "Value",
+    x = "Threshold",
+    title = "Threshold vs Metric"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 20),
+    legend.text = element_text(size = 20),
+    legend.title = element_text(size = 15),
+    axis.title = element_text(size = 20)
+  )
+
+
+# new document performance ------------------------------------------------
+
+# 2441
+b441.imgs <- collect_images("data/documents_processed/b2441", width = shape_size_width, height = shape_size_length)
+
+new_images <- b441.imgs %>%
+  aperm(c(3, 1, 2))
+
+new_images[1,,] %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+
+new_images[2,,] %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+
+# compare against everything in train set
+similarities <- map(
+  (1:(train_images %>% dim())[1]),
+  function(x){
+    message(glue("Image {x} out of 342"))
+    similarity <- model %>%
+      predict(
+        list(
+          array_reshape(1 - new_images[1,,] , c(1, shape_size_width, shape_size_length, 1)),
+          array_reshape(train_images[x ,,] , c(1, shape_size_width, shape_size_length, 1))
+        )
+      )
+
+    list(
+      image = train_images[x ,,],
+      similarity = similarity
+    )
+  }
+)
+
+same_similarity <- model %>%
+  predict(
+    list(
+      array_reshape(1 - new_images[1,,] , c(1, shape_size_width, shape_size_length, 1)),
+      array_reshape(1 - new_images[2,,] , c(1, shape_size_width, shape_size_length, 1))
+    )
+  )
+
+# Order based on most similar
+ordered_similarities <- similarities[order(map_dbl(similarities, c("similarity")), decreasing = TRUE)]
+
+abind(new_images[1,,],
+      new_images[2,,],
+      1 - ordered_similarities[[1]]$image,
+      1 - ordered_similarities[[2]]$image,
+      1 - ordered_similarities[[3]]$image,
+      along = 1) %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+title(
+  paste(
+    "Original",
+    round(same_similarity,5),
+    round(ordered_similarities[[1]]$similarity,5),
+    round(ordered_similarities[[2]]$similarity,5),
+    round(ordered_similarities[[3]]$similarity,5),
+    sep = ", "
+  ),
+  col.main = "blue",
+  line = -3
+)
+
+
+# test against shearing ---------------------------------------------------
+
+sample_1.img <- train_data_list[[4]]$data[1,,,]
+
+sample_1.img %>% {1 - .} %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+
+# sample_2.img <- sample_1.img %>% rotate(-5) %>% resize(w = shape_size_width, h = shape_size_length)
+# sample_3.img <- sample_1.img %>% rotate(5) %>% resize(w = shape_size_width, h = shape_size_length)
+# sample_4.img <- sample_1.img %>% rotate(10) %>% resize(w = shape_size_width, h = shape_size_length)
+# sample_5.img <- sample_1.img %>% rotate(20) %>% resize(w = shape_size_width, h = shape_size_length)
+sample_2.img <- sample_1.img %>% {. * 0.9}
+sample_3.img <- sample_1.img %>% {. * 0.7}
+sample_4.img <- sample_1.img %>% {. * 0.5}
+sample_5.img <- sample_1.img %>% {. * 0.3}
+
+
+# compare against all
+similarities <- map(
+  list(sample_2.img, sample_3.img, sample_4.img, sample_5.img),
+  function(x){
+    similarity <- model %>%
+      predict(
+        list(
+          array_reshape(sample_1.img , c(1, shape_size_width, shape_size_length, 1)),
+          array_reshape(x , c(1, shape_size_width, shape_size_length, 1))
+        )
+      )
+
+    list(
+      image = x,
+      similarity = similarity
+    )
+  }
+)
+
+
+# Order based on most similar
+ordered_similarities <- similarities[order(map_dbl(similarities, c("similarity")), decreasing = TRUE)]
+
+abind(1 - sample_1.img,
+      1 - sample_2.img,
+      1 - sample_3.img,
+      1 - sample_4.img,
+      1 - sample_5.img,
+      along = 1) %>%
+  Image(colormode = "Grayscale") %>%
+  display(method = "raster")
+title(
+  paste(
+    "Original",
+    round(ordered_similarities[[1]]$similarity,5),
+    round(ordered_similarities[[2]]$similarity,5),
+    round(ordered_similarities[[3]]$similarity,5),
+    round(ordered_similarities[[4]]$similarity,5),
+    sep = ", "
+  ),
+  col.main = "blue",
+  line = -3
+)
+

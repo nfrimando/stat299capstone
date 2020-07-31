@@ -11,21 +11,21 @@ s3 <- paws::s3()
 
 # Get One Document --------------------------------------------------------
 
-# loan_application_id <- buyer_loanapp.dt$loan_application_id[1]
-# attachment_id <- buyer_loanapp.dt$attachment_id[1]
-# buyer_id <- buyer_loanapp.dt$buyer_id[1]
-#
-# s3 %>%
-#   s3_get_document(
-#     loan_application_id = loan_application_id,
-#     attachment_id = attachment_id
-#   ) %$%
-#   Body %>%
-#   magick_render_pdf(
-#     path = glue::glue(
-#       "data/documents/b{buyer_id}_la{loan_application_id}_a{attachment_id}.pdf"
-#     )
-#   )
+loan_application_id <- 8209
+attachment_id <- 833
+buyer_id <- 2441 # Kantar
+
+s3 %>%
+  s3_get_document(
+    loan_application_id = loan_application_id,
+    attachment_id = attachment_id
+  ) %$%
+  Body %>%
+  magick_render_pdf(
+    path = glue::glue(
+      "data/documents/b{buyer_id}_la{loan_application_id}_a{attachment_id}.pdf"
+    )
+  )
 
 # Looping -----------------------------------------------------------------
 
