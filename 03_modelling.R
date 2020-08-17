@@ -42,11 +42,24 @@ documents_samples <- list(
 # Split to train, validation, and test
 # 64-16-20
 
-train_indeces <- sample(1:length(documents_samples$labels), ceiling(length(documents_samples$labels) * 0.8))
-test_indeces <- (1:length(documents_samples$labels))[-train_indeces]
+# train_indeces <- sample(1:length(documents_samples$labels), ceiling(length(documents_samples$labels) * 0.8))
+# test_indeces <- (1:length(documents_samples$labels))[-train_indeces]
+# val_indeces <- sample(train_indeces, length(train_indeces) * 0.2)
+# train_indeces <- train_indeces[!(train_indeces %in% val_indeces)]
+labels <- factor(documents_samples$labels, levels = sort(unique(as.numeric(documents_samples$labels)))) # Turn lables to numeric
+
+b9592_test_indeces <- sample(which(documents_samples$labels == "9592"), 27)
+b9763_test_indeces <- sample(which(documents_samples$labels == "9763"), 25)
+b9211_test_indeces <- sample(which(documents_samples$labels == "9211"), 19)
+b2929_test_indeces <- sample(which(documents_samples$labels == "2929"), 16)
+b8607_test_indeces <- sample(which(documents_samples$labels == "8607"), 10)
+b12754_test_indeces <- sample(which(documents_samples$labels == "12754"), 9)
+test_indeces <- c(b9592_test_indeces, b9763_test_indeces, b9211_test_indeces,
+                  b2929_test_indeces, b8607_test_indeces, b12754_test_indeces)
+
+train_indeces <- (1:length(documents_samples$labels))[-test_indeces]
 val_indeces <- sample(train_indeces, length(train_indeces) * 0.2)
 train_indeces <- train_indeces[!(train_indeces %in% val_indeces)]
-labels <- factor(documents_samples$labels, levels = sort(unique(as.numeric(documents_samples$labels)))) # Turn lables to numeric
 
 # Train
 train_images <- 1 - documents_samples$images[train_indeces, ,]
@@ -201,7 +214,7 @@ join_generator <- function( generator_list , batch ) {
       # front half
       if( i <= ceiling(batch/2) ) { # It's suggest to use balance of positive and negative data set, so I divide half is 1(same) and another is 0(differnet).
         grp_same    <- sample( seq_len(num_classes) , 1 )
-        batch_left  <- abind( batch_left , c , along = 1 )
+        batch_left  <- abind( batch_left , generator_next(generator_list[[grp_same]])[[1]] , along = 1 )
         batch_right <- abind( batch_right , generator_next(generator_list[[grp_same]])[[1]] , along = 1 )
         similarity  <- c( similarity , 1 ) # 1 : from the same number
         #par(mar = c(0,0,4,0))
@@ -353,6 +366,65 @@ title(
   col.main = "blue"
 )
 
+# Test set vs Test set (non-augmented) ------------------------------------------
+
+library(glue)
+# Do for all items in test set
+non_augmented_similarities_test_only <- map_df(
+  1:length(test_labels),
+  function(test_index) {
+    map_df(
+      1:length(test_labels),
+      function(test_index_2) {
+        message(glue("Comparing test index {test_index} against test index {test_index_2} out of {(test_images %>% dim())[1]}"))
+
+        similarity <- model %>%
+          predict(
+            list(
+              array_reshape(test_images[test_index,,] , c(1, shape_size_width, shape_size_length, 1)),
+              array_reshape(test_images[test_index_2,,] , c(1, shape_size_width, shape_size_length, 1))
+            )
+          )
+
+        data.frame(
+          test_index = test_index,
+          test_label = test_labels[test_index],
+          test_index_2 = test_index_2,
+          test_label_2 = test_labels[test_index_2],
+          similarity = similarity
+        )
+      }
+    )
+  }
+)
+
+saveRDS(
+  list(
+    non_augmented_similarities_test_only
+  ),
+  "data/modelling_data/non_augmented_similarities_test_only.rds"
+)
+
+non_augmented_similarities_test_only %>%
+  filter(test_label == 0) %>%
+  filter(test_index != test_index_2) %>%
+  mutate(is_predicted_similar = similarity >= 0.5) %>%
+  mutate(is_correct = (is_predicted_similar & test_label == test_label_2) | (!is_predicted_similar & test_label != test_label_2)) %>%
+  # group_by(test_label) %>%
+  summarise(
+    number_of_pairs = n(),
+    number_of_test_samples = length(unique(test_index)),
+    number_of_actual_similar_pairs = sum(test_label == test_label_2),
+    number_of_predicted_similar_pairs = sum(is_predicted_similar),
+    number_of_actual_dissimilar_pairs = sum(test_label != test_label_2),
+    number_of_predicted_dissimilar_pairs = sum(!is_predicted_similar),
+    number_of_correctly_predicted_pairs = sum(is_correct),
+    accuracy = sum(is_correct)/n(),
+    sensitivity = sum(is_predicted_similar & test_label == test_label_2)/sum(test_label == test_label_2),
+    specificity = sum(!is_predicted_similar & test_label != test_label_2)/sum(test_label != test_label_2)
+  ) %>%
+  ungroup() %>%
+  arrange(desc(number_of_test_samples)) %>% View()
 
 # Entire Set --------------------------------------------------------------
 
@@ -517,7 +589,7 @@ non_augmented_similarities %>%
     specificity = sum(!is_predicted_similar & test_label != train_label)/sum(test_label != train_label)
   ) %>%
   ungroup() %>%
-  arrange(desc(number_of_test_samples))
+  arrange(desc(number_of_test_samples)) %>% View()
 
 # Threshold sensitivity
 auc <- map_df(
