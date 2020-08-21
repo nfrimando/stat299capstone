@@ -72,6 +72,7 @@ history2 <- model2 %>% fit_generator(
 end_time <- Sys.time()
 model2_time <- end_time - start_time
 
+model2 %>% evaluate_generator(test_join_generator, steps = 1000)
 
 # Model 3 -----------------------------------------------------------------
 
@@ -132,3 +133,5 @@ history3 <- model3 %>% fit_generator(
 )
 end_time <- Sys.time()
 model3_time <- end_time - start_time
+
+model3 %>% evaluate_generator(test_join_generator, steps = 1000)

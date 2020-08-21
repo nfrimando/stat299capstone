@@ -332,7 +332,7 @@ plot(history)
 
 # Data testing ------------------------------------------------------------
 
-model3 %>% evaluate_generator(test_join_generator, steps = 1000)
+model %>% evaluate_generator(test_join_generator, steps = 1000)
 model %>% predict_generator(test_generator, steps=num_test_images)
 
 
@@ -581,8 +581,10 @@ non_augmented_similarities %>%
     number_of_test_samples = length(unique(test_index)),
     number_of_actual_similar_pairs = sum(test_label == train_label),
     number_of_predicted_similar_pairs = sum(is_predicted_similar),
+    number_of_correctly_predicted_similar_pairs = sum(is_predicted_similar & is_correct),
     number_of_actual_dissimilar_pairs = sum(test_label != train_label),
     number_of_predicted_dissimilar_pairs = sum(!is_predicted_similar),
+    number_of_correctly_predicted_dissimilar_pairs = sum(!is_predicted_similar & is_correct),
     number_of_correctly_predicted_pairs = sum(is_correct),
     accuracy = sum(is_correct)/n(),
     sensitivity = sum(is_predicted_similar & test_label == train_label)/sum(test_label == train_label),
