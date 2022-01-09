@@ -482,7 +482,10 @@ title(
 
 test_labels %>% length()
 
-index <- 30
+
+train_labels %>% table()
+# which(test_labels == 5)
+index <- 98 # for testing a single document against train set
 
 # compare against everything in train set
 similarities <- map(
@@ -629,7 +632,6 @@ auc %>%
     legend.title = element_text(size = 15),
     axis.title = element_text(size = 20)
   )
-
 
 # new document performance ------------------------------------------------
 
